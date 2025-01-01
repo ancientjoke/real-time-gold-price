@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <meta http-equiv="X-UA-Compatible" content="ie=edge">
+   <title>gold</title>
+
+   <link rel="icon" type="image/png" href="/images/favicon.ico" />
+   <link rel="stylesheet" type="text/css" href="/css/main.css">
+   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+   <div class="bg" style="background-image: url('images/bg.jpg');">
+       <div class="container-gold">
+           <div class="wrap-gold">
+               <h1>Gold API</h1>
+
+               <p>Real Time Gold Prices by <a href="https://github.com/ancientjoke">ancientjoke</a></p>
+               <br>
+
+               <h2>Gold Price</h2>
+
+               <div id="chartLoading" style="text-align: center; display: none;">
+                   Loading gold price data...
+               </div>
+               <div id="chartError" style="text-align: center; color: red; display: none;">
+                   Error loading gold price data. Please try again later.
+               </div>
+               
+               <div style="width: 50%; margin: 0 auto;">
+                   <canvas id="goldChart"></canvas>
+               </div>
+               <br>
+
+               <iframe id="goldpriceiframe" src="//widgets.goldprice.com/widget/index.html" seamless="seamless"
+                   scrolling="no" frameborder="0" marginwidth="0" marginheight="0"
+                   style="height:350px;overflow-x:hidden;"></iframe>
+
+               <iframe src="//getprices.goldprice.com/small_charts/selector.php" seamless="seamless" scrolling="no"
+                   frameborder="0" marginwidth="0" marginheight="0" style="height:350px;overflow-x:hidden;"></iframe>
+               <br>
+               <br>
+
+               <h2>Exchange Rate</h2>
+
+                <div
+                    style="font-size:16px;font-family:sans-serif,Arial,Helvetica;width:298px; line-height:24px;border:1px solid #732908;background-color:#F8DEB6;">
+                    <div
+                        style="background-color:#732908;height:24px; font-weight:bold;text-align:left;padding-top:3px; width:100%;">
+                        <span
+                            style="background-image:url(https://www.fxexchangerate.com/static/flag.png); background-position: 0 -2064px;float:left; margin:4px 0 0 20px; width:20px;height:15px; background-repeat:no-repeat;"></span><a
+                            rel="nofollow" style="color:#FFFFFF;padding-left:5px;text-decoration:none;"
+                            href="https://usd.fxexchangerate.com">United States Dollar</a></div>
+                    <script type="text/javascript"
+                        src="https://w.fxexchangerate.com/converter.php?fm=USD&ft=ZAR,&lg=en&am=1&ty=2"></script>
+                </div>
+               <br>
+               <br>
+
+               </ul>
+           </div>
+       </div>
+   </div>
+
+   <script>
+       const apiKey = 'YOUR_API_KEY';
+       const baseUrl = 'https://www.goldapi.io/api';
+
+       function showLoading() {
+           document.getElementById('chartLoading').style.display = 'block';
+           document.getElementById('chartError').style.display = 'none';
+       }
+
+       function showError() {
+           document.getElementById('chartLoading').style.display = 'none';
+           document.getElementById('chartError').style.display = 'block';
+       }
+
+       function hideLoading() {
+           document.getElementById('chartLoading').style.display = 'none';
+       }
+
+       async function fetchGoldPrices() {
+           const labels = [];
+           const prices = [];
+           
+           for(let i = 6; i >= 0; i--) {
+               const date = new Date();
+               date.setDate(date.getDate() - i);
+               const formattedDate = date.toISOString().split('T')[0];
+               
+               try {
+                   const response = await fetch(`${baseUrl}/XAU/USD/${formattedDate}`, {
+                       headers: {
+                           'x-access-token': apiKey,
+                           'Content-Type': 'application/json'
+                       }
+                   });
+                   
+                   if (!response.ok) {
+                       throw new Error('Network response was not ok');
+                   }
+                   
+                   const data = await response.json();
+                   labels.push(formattedDate);
+                   prices.push(data.price);
+               } catch (error) {
+                   console.error('Error fetching gold price:', error);
+               }
+           }
+           
+           return { labels, prices };
+       }
+
+       async function createChart() {
+           try {
+               showLoading();
+               const ctx = document.getElementById('goldChart').getContext('2d');
+               const { labels, prices } = await fetchGoldPrices();
+               hideLoading();
+               
+               new Chart(ctx, {
+                   type: 'line',
+                   data: {
+                       labels: labels,
+                       datasets: [{
+                           label: 'Gold Price (USD/oz)',
+                           data: prices,
+                           borderColor: '#FFD700',
+                           backgroundColor: 'rgba(255, 215, 0, 0.1)',
+                           borderWidth: 2,
+                           fill: true,
+                           tension: 0.4
+                       }]
+                   },
+                   options: {
+                       responsive: true,
+                       maintainAspectRatio: true,
+                       plugins: {
+                           legend: {
+                               position: 'top',
+                           },
+                           title: {
+                               display: true,
+                               text: 'Gold Price Chart - Last 7 Days'
+                           }
+                       },
+                       scales: {
+                           y: {
+                               beginAtZero: false,
+                               ticks: {
+                                   callback: function(value) {
+                                       return '$' + value.toFixed(2);
+                                   }
+                               }
+                           }
+                       }
+                   }
+               });
+           } catch (error) {
+               console.error('Error creating chart:', error);
+               showError();
+           }
+       }
+
+       window.addEventListener('load', createChart);
+
+       setInterval(createChart, 300000);
+   </script>
+</body>
+</html>
